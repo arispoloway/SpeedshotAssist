@@ -10,9 +10,9 @@
 
 	"Files"
 	{
-		"Plugin"				"Path_SM/plugins/speedshotr.smx"
+		"Plugin"				"Path_SM/plugins/speedshotassist.smx"
 		
-		"Source"				"Path_SM/scripting/jumpassist.sp"
+		"Source"				"Path_SM/scripting/speedshotassist.sp"
 
 
 	}

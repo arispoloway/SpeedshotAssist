@@ -10,7 +10,7 @@
 #define UPDATE_URL_BRANCH "master"
 #define UPDATE_URL_FILE   "updatefile.txt"
 
-#define PLUGIN_VERSION "0.1.0"
+#define PLUGIN_VERSION "0.1.1"
 
 new String:g_URLMap[256] = "";
 
@@ -43,6 +43,10 @@ public OnPluginStart(){
 
 }
 
+public OnClientDisconnect(client){
+	enabled[client] = false;
+}
+
 public Updater_OnPluginUpdated()
 {
 	LogMessage("Speedshot Assist Update complete.");
@@ -62,6 +66,12 @@ public Action:Command_SpeedshotToggle(client,args){
 		return Plugin_Handled;
 	}
 	enabled[client] = !enabled[client];
+
+	if(enabled[client]){
+		PrintToChat(client, "Speedshot Assist Enabled");
+	}else{
+		PrintToChat(client, "Speedshot Assist Disabled");
+	}
 
 	return Plugin_Continue;
 

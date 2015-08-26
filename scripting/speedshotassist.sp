@@ -10,13 +10,14 @@
 #define UPDATE_URL_BRANCH "master"
 #define UPDATE_URL_FILE   "updatefile.txt"
 
-#define PLUGIN_VERSION "0.1.1"
+#define PLUGIN_VERSION "0.1.2"
 
 new String:g_URLMap[256] = "";
 
+
 public Plugin:myinfo = {
 	name = "Speedshot Assist",
-	author = "nolem",
+	author = "nolem, replica",
 	description = "Will assist with speedshot timing and location",
 	version = "PLUGIN_VERSION",
 	url = "http://www.tf2rj.com"
@@ -40,12 +41,7 @@ public OnPluginStart(){
 	} else {
 		LogMessage("Updater plugin not found.");
 	}
-
-}
-
-public OnClientDisconnect(client){
-	enabled[client] = false;
-}
+}	
 
 public Updater_OnPluginUpdated()
 {
@@ -67,12 +63,6 @@ public Action:Command_SpeedshotToggle(client,args){
 	}
 	enabled[client] = !enabled[client];
 
-	if(enabled[client]){
-		PrintToChat(client, "Speedshot Assist Enabled");
-	}else{
-		PrintToChat(client, "Speedshot Assist Disabled");
-	}
-
 	return Plugin_Continue;
 
 }
@@ -86,7 +76,7 @@ public OnGameFrame(){
 			decl Float:l[3];
 			decl Float:e[3];
 			decl bool:d;
-			//new at = 0;
+			new at = 0;
 
 			decl b;
 
@@ -100,9 +90,9 @@ public OnGameFrame(){
 			if(b & IN_DUCK){
 				d=true;
 			}
-			//if(b & IN_ATTACK){
-			//	at = 1;
-			//}
+			if(b & IN_ATTACK){
+				at = 1;
+			}
 
 
 			new Float:h = GetEndPosition(client, false);
@@ -114,6 +104,17 @@ public OnGameFrame(){
 
 					new Float:radius;
 					new Float:z = e[2] - h;
+
+
+					new Float:landPoint[3];
+
+					landPoint[2] = h;
+
+					landPoint[0] = l[0] + v[0]/66.6666666 * (ticks_player-3);
+					landPoint[1] = l[1] + v[1]/66.6666666 * (ticks_player-3);
+
+					DrawTarget(landPoint, 3.5, 0.7, client);
+
 
 					new Float:comp = Pow((ticks_player)*16.5, 2.0) - Pow(z,2.0);
 					if(comp < 0.0){
@@ -127,16 +128,9 @@ public OnGameFrame(){
 					pos[1] = l[1];
 					pos[2] = h;
 
-					DrawCircle(pos, radius, 0.13, client);
+					DrawCircle(pos, radius, 0.13, client, ticks_player, ticks_rocket);
 
-					new Float:landPoint[3];
 
-					landPoint[2] = h;
-
-					landPoint[0] = l[0] + v[0]/66.6666666 * (ticks_player-3);
-					landPoint[1] = l[1] + v[1]/66.6666666 * (ticks_player-3);
-
-					DrawTarget(landPoint, 3.5, 0.7, client);
 
 
 
@@ -243,7 +237,7 @@ stock DrawTarget(Float:vecLocation[3], Float:radius, Float:angleIncr, client)
 }  
 
 
-stock DrawCircle(Float:vecLocation[3], Float:radius, Float:angleIncr, client) 
+stock DrawCircle(Float:vecLocation[3], Float:radius, Float:angleIncr, client, ticks_rocket, ticks_player) 
 { 
     new Float:angle=0.0, Float:x, Float:y; 
      
@@ -264,14 +258,32 @@ stock DrawCircle(Float:vecLocation[3], Float:radius, Float:angleIncr, client)
         pos1[1] = vecLocation[1] + y; 
         pos1[2] = vecLocation[2]; 
 
-        TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {255,0,255,255}, 3); 
-        TE_SendToClient(client);
-        //TE_SendToAll();
+       //Hi nolem!
+        if(ticks_rocket == ticks_player)
+			{
+				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {0,255,239,255}, 3); 
+        		TE_SendToClient(client);
+        		
+			}
+			else if(ticks_rocket > ticks_player)
+			{
+				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {0,255,0,255}, 3); 
+        		TE_SendToClient(client);
+        		
+
+			}
+			else if(ticks_rocket < ticks_player)
+			{
+				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {255,0,0,255}, 3); 
+       			TE_SendToClient(client);
+       			
+       		}
+
          
         pos2[0] = pos1[0]; 
         pos2[1] = pos1[1]; 
         pos2[2] = pos1[2]; 
          
-        angle += angleIncr; 
-    } 
+        angle += angleIncr;
+    }  
 }  

@@ -10,7 +10,7 @@
 #define UPDATE_URL_BRANCH "master"
 #define UPDATE_URL_FILE   "updatefile.txt"
 
-#define PLUGIN_VERSION "0.1.2"
+#define PLUGIN_VERSION "0.1.3"
 
 new String:g_URLMap[256] = "";
 
@@ -19,7 +19,7 @@ public Plugin:myinfo = {
 	name = "Speedshot Assist",
 	author = "nolem, replica",
 	description = "Will assist with speedshot timing and location",
-	version = "PLUGIN_VERSION",
+	version = PLUGIN_VERSION,
 	url = "http://www.tf2rj.com"
 };
 
@@ -52,6 +52,16 @@ public Updater_OnPluginUpdated()
 public OnMapStart(){
 	g_BeamSprite = PrecacheModel("materials/sprites/laser.vmt");
 	g_HaloSprite = PrecacheModel("materials/sprites/halo01.vmt");
+    for(new i = 0; i < 33; i++){
+        enabled[i] = false;
+    }
+}
+
+
+public OnClientDisconnect(client)
+{
+    enabled[client] = false;
+
 }
 
 public Action:Command_SpeedshotToggle(client,args){

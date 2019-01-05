@@ -208,7 +208,7 @@ void DrawTarget(float vecLocation[3], float radius, float angleIncr, int client,
 		int RGBA[4];
 		RGBA[0] = RLessThanP ? 255 :   0;
 		RGBA[1] = RLessThanP ?   0 : 255;
-		RGBA[2] = REqualsP ? 239 :   0;
+		RGBA[2] = REqualsP   ? 239 :   0;
 		RGBA[3] = 255;
 
 		TE_SetupBeamPoints(pos1, pos2, g_iBeamSprite, g_iHaloSprite, 0, 0, 0.1, 5.0, 0.1, 5, 0.0, RGBA, 3);

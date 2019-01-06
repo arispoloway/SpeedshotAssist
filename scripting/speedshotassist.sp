@@ -1,3 +1,6 @@
+#pragma semicolon 1
+#pragma newdecls required
+
 #include <sourcemod>
 #include <sdktools>
 
@@ -6,294 +9,254 @@
 #define REQUIRE_PLUGIN
 
 #define PI 3.1415926535
+
+#define PLUGIN_VERSION "0.2.0"
+#define PLUGIN_DESCRIPTION "Tool to assist with speedshot timing and location"
 #define UPDATE_URL_BASE "http://raw.github.com/arispoloway/SpeedshotAssist"
 #define UPDATE_URL_BRANCH "master"
-#define UPDATE_URL_FILE   "updatefile.txt"
+#define UPDATE_URL_FILE "updatefile.txt"
 
-#define PLUGIN_VERSION "0.1.3"
+bool g_bEnabled[MAXPLAYERS+1];
+bool g_bLateLoad;
 
-new String:g_URLMap[256] = "";
+int g_iBeamSprite;
+int g_iHaloSprite;
 
+char g_URLMap[256];
 
-public Plugin:myinfo = {
+public Plugin myinfo = {
 	name = "Speedshot Assist",
 	author = "nolem, replica",
-	description = "Will assist with speedshot timing and location",
+	description = PLUGIN_DESCRIPTION,
 	version = PLUGIN_VERSION,
 	url = "http://www.tf2rj.com"
 };
 
-new bool:enabled[33];
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) {
+	g_bLateLoad = late;
+	return APLRes_Success;
+}
 
-new g_BeamSprite;
-new g_HaloSprite;
+public void OnPluginStart() {
+	CreateConVar("sm_speedshotassist_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD).SetString(PLUGIN_VERSION);
 
-public OnPluginStart(){
+	RegConsoleCmd("sm_ssa", cmdSSA);
 
-	RegConsoleCmd("sm_ssa", Command_SpeedshotToggle);
-	g_BeamSprite = PrecacheModel("materials/sprites/laser.vmt");
-	g_HaloSprite = PrecacheModel("materials/sprites/halo01.vmt");
-
-	Format(g_URLMap,sizeof(g_URLMap),"%s/master/%s",UPDATE_URL_BASE,UPDATE_URL_FILE);
-	if (LibraryExists("updater"))
-	{
+	Format(g_URLMap, sizeof(g_URLMap), "%s/master/%s", UPDATE_URL_BASE,UPDATE_URL_FILE);
+	if (LibraryExists("updater")) {
 		Updater_AddPlugin(g_URLMap);
-	} else {
-		LogMessage("Updater plugin not found.");
 	}
-}	
 
-public Updater_OnPluginUpdated()
-{
+	if (g_bLateLoad) {
+		PrintToChatAll("\x01\x03SSA Reloaded");
+	}
+}
+
+public void Updater_OnPluginUpdated() {
 	LogMessage("Speedshot Assist Update complete.");
 	ReloadPlugin();
 }
 
-public OnMapStart(){
-	g_BeamSprite = PrecacheModel("materials/sprites/laser.vmt");
-	g_HaloSprite = PrecacheModel("materials/sprites/halo01.vmt");
-    for(new i = 0; i < 33; i++){
-        enabled[i] = false;
-    }
+public void OnMapStart() {
+	g_iBeamSprite = PrecacheModel("materials/sprites/laser.vmt");
+	g_iHaloSprite = PrecacheModel("materials/sprites/halo01.vmt");
 }
 
-
-public OnClientDisconnect(client)
-{
-    enabled[client] = false;
-
+public void OnMapEnd() {
+	for (int i = 0; i < MaxClients; i++) {
+		g_bEnabled[i] = false;
+	}
 }
 
-public Action:Command_SpeedshotToggle(client,args){
+public void OnClientDisconnect(int client) {
+	g_bEnabled[client] = false;
+}
 
-	//duh
-	if( !client ){
-		ReplyToCommand(client, "No rcon idiot");
+public Action cmdSSA(int client, int args) {
+	if (!client) {
 		return Plugin_Handled;
 	}
-	enabled[client] = !enabled[client];
 
-	return Plugin_Continue;
-
+	g_bEnabled[client] = !g_bEnabled[client];
+	PrintToChat(client, "\x01[\x03SSA\x01] Speed shot assist\x03 %s", g_bEnabled[client] ? "enabled" : "disabled");
+	return Plugin_Handled;
 }
 
-public OnGameFrame(){
-
-	for(new i = 0; i < 33; i++){
-		if(enabled[i]){
-			new client = i;
-			decl Float:v[3];
-			decl Float:l[3];
-			decl Float:e[3];
-			decl bool:d;
-			new at = 0;
-
-			decl b;
-
-			GetEntPropVector(client, Prop_Data, "m_vecOrigin", l);
-			GetEntPropVector(client, Prop_Data, "m_vecVelocity", v);
-
-			GetClientEyePosition(client, e);
-
-			b = GetClientButtons(client);
-
-			if(b & IN_DUCK){
-				d=true;
-			}
-			if(b & IN_ATTACK){
-				at = 1;
-			}
-
-
-			new Float:h = GetEndPosition(client, false);
-			if(v[2] != 0.0){
-				if(h < l[2]){
-					new ticks_player = GetTicksTillLand(v[2], h, l[2], d);
-					new ticks_rocket = GetTicksTillRocketHit(client);
-					//PrintToChat(client, "%d %d %d", ticks_player, ticks_rocket, at);
-
-					new Float:radius;
-					new Float:z = e[2] - h;
-
-
-					new Float:landPoint[3];
-
-					landPoint[2] = h;
-
-					landPoint[0] = l[0] + v[0]/66.6666666 * (ticks_player-3);
-					landPoint[1] = l[1] + v[1]/66.6666666 * (ticks_player-3);
-
-					DrawTarget(landPoint, 3.5, 0.7, client);
-
-
-					new Float:comp = Pow((ticks_player)*16.5, 2.0) - Pow(z,2.0);
-					if(comp < 0.0){
-						return;
-					}
-
-					radius = SquareRoot(comp);
-
-					new Float:pos[3];
-					pos[0] = l[0];
-					pos[1] = l[1];
-					pos[2] = h;
-
-					DrawCircle(pos, radius, 0.13, client, ticks_player, ticks_rocket);
-
-
-
-
-
-				}
-			}
-
-				
+public void OnGameFrame() {
+	for (int i = 1; i < MaxClients; i++) {
+		if (!IsValidClient(i) || !g_bEnabled[i]) {
+			continue;
 		}
+
+		int client = i;
+		float vVelocity[3];
+		float vOrigin[3];
+		float vEyePos[3];
+
+		GetEntPropVector(client, Prop_Data, "m_vecOrigin", vOrigin);
+		GetEntPropVector(client, Prop_Data, "m_vecVelocity", vVelocity);
+
+		GetClientEyePosition(client, vEyePos);
+
+		float end = GetEndPosition(client, false);
+
+		if (vVelocity[2] == 0.0 || end >= vOrigin[2]) {
+			continue;
+		}
+
+		int ticksPlayer = GetTicksTillLand(vVelocity[2], end, vOrigin[2]);
+		int ticksRocket = GetTicksTillRocketHit(client);
+
+		float z = vEyePos[2] - end;
+
+		float vLandPoint[3];
+
+		vLandPoint[0] = vOrigin[0] + vVelocity[0]/66.6666666 * (ticksPlayer-3);
+		vLandPoint[1] = vOrigin[1] + vVelocity[1]/66.6666666 * (ticksPlayer-3);
+		vLandPoint[2] = end;
+
+		DrawTarget(vLandPoint, 7.0, 0.7, client, (ticksRocket < ticksPlayer), (ticksRocket == ticksPlayer));
+
+		float comp = Pow((ticksPlayer)*16.5, 2.0) - Pow(z, 2.0);
+		if (comp < 0.0) {
+			return;
+		}
+
+		DrawCircle(vLandPoint, 50.0, 0.122, client, (ticksRocket < ticksPlayer), (ticksRocket == ticksPlayer));
 	}
-
-
 }
 
+int GetTicksTillRocketHit(int client) {
+	float vEyePos[3];
+	float vEyeAng[3];
+	float vEnd[3];
+	GetClientEyePosition(client, vEyePos);
+	GetClientEyeAngles(client, vEyeAng);
 
-
-
-GetTicksTillRocketHit(client){
-	decl Float:s[3], Float:a[3], Float:e[3];
-	GetClientEyePosition(client, s);
-	GetClientEyeAngles(client, a);
-	TR_TraceRayFilter(s, a, MASK_SOLID, RayType_Infinite, TraceEntityFilterPlayer, client);
-	if (TR_DidHit(INVALID_HANDLE)){
-		TR_GetEndPosition(e, INVALID_HANDLE);
+	TR_TraceRayFilter(vEyePos, vEyeAng, MASK_SOLID, RayType_Infinite, TraceEntityFilterPlayer, client);
+	if (TR_DidHit(null)) {
+		TR_GetEndPosition(vEnd, null);
 	}
 
-	new Float:distance = SquareRoot( Pow(e[0]-s[0], 2.0) + Pow(e[1]-s[1], 2.0) + Pow(e[2]-s[2], 2.0)  );
+	float distance = SquareRoot(Pow(vEnd[0]-vEyePos[0], 2.0) + Pow(vEnd[1]-vEyePos[1], 2.0) + Pow(vEnd[2]-vEyePos[2], 2.0));
 
-	new ticks = RoundToFloor((distance) / 16.5);
+	int ticks = RoundToFloor((distance) / 16.5);
 	return ticks;
-
 }
 
-GetTicksTillLand(Float:vel, Float:floor, Float:pos, bool:crouched){
-	new ticks = 0;
-	new Float:height = pos - floor;
+int GetTicksTillLand(float vel, float floor, float pos) {
+	int ticks;
+	float height = pos - floor;
 
 	vel /= 66.66666666;
-	vel += 0.09
+	vel += 0.09;
 
-	while(height > 0){
+	while (height > 0) {
 		vel -= 0.18;
 		height += vel;
 		ticks++;
 	}
+
 	return ticks;
-
 }
 
+float GetEndPosition(int client, bool straightDown) {
+	float vEyePos[3];
+	float vEyeAng[3];
+	float vEnd[3];
+	GetClientEyePosition(client, vEyePos);
 
-
-Float:GetEndPosition(client, bool:straightDown){
-	decl Float:start[3], Float:angle[3], Float:end[3];
-	GetClientEyePosition(client, start);
-	if(straightDown){
-		angle[0] = 90.0;
-	}else{
-		GetClientEyeAngles(client, angle);
+	if (straightDown) {
+		vEyeAng[0] = 90.0;
 	}
-	TR_TraceRayFilter(start, angle, MASK_SOLID, RayType_Infinite, TraceEntityFilterPlayer, client);
-	if (TR_DidHit(INVALID_HANDLE)){
-		TR_GetEndPosition(end, INVALID_HANDLE);
+	else {
+		GetClientEyeAngles(client, vEyeAng);
 	}
-	//PrintToServer("%f", end[2]);
-	return end[2];
+
+	TR_TraceRayFilter(vEyePos, vEyeAng, MASK_SOLID, RayType_Infinite, TraceEntityFilterPlayer, client);
+	if (TR_DidHit(null)) {
+		TR_GetEndPosition(vEnd, null);
+	}
+
+	return vEnd[2];
 }
 
-//I have no idea what this does I stole this too
-public bool:TraceEntityFilterPlayer(entity, contentsMask, any:data){
-	return entity > MaxClients;
+public bool TraceEntityFilterPlayer(int entity, int contentsMask, any data) {
+	return (entity > MaxClients);
+}
+
+void DrawTarget(float vecLocation[3], float radius, float angleIncr, int client, bool RLessThanP, bool REqualsP) {
+	float angle;
+	float x;
+	float y;
+
+	float pos1[3];
+	float pos2[3];
+
+	//Create the start position for the first part of the beam
+	pos2 = vecLocation;
+	pos2[0] += radius;
+
+	while (angle <= 2 * (PI + angleIncr)) {
+		x = radius * Cosine(angle);
+		y = radius * Sine(angle);
+
+		pos1 = vecLocation;
+		pos1[0] += x;
+		pos1[1] += y;
+
+		int RGBA[4];
+		RGBA[0] = RLessThanP ? 255 :   0;
+		RGBA[1] = RLessThanP ?   0 : 255;
+		RGBA[2] = REqualsP   ? 239 :   0;
+		RGBA[3] = 255;
+
+		TE_SetupBeamPoints(pos1, pos2, g_iBeamSprite, g_iHaloSprite, 0, 0, 0.1, 5.0, 0.1, 5, 0.0, RGBA, 3);
+		TE_SendToClient(client);
+
+		pos2 = pos1;
+
+		angle += angleIncr;
+	}
 }
 
 
-stock DrawTarget(Float:vecLocation[3], Float:radius, Float:angleIncr, client) 
-{ 
-    new Float:angle=0.0, Float:x, Float:y; 
-     
-    new Float:pos1[3]; 
-    new Float:pos2[3]; 
-         
-    //Create the start position for the first part of the beam 
-    pos2[0] = vecLocation[0] + radius; 
-    pos2[1] = vecLocation[1]; 
-    pos2[2] = vecLocation[2]; 
-     
-    while (angle <= 2 * (PI + angleIncr)) 
-    {              
-        x = radius * Cosine(angle); 
-        y = radius * Sine(angle); 
-         
-        pos1[0] = vecLocation[0] + x; 
-        pos1[1] = vecLocation[1] + y; 
-        pos1[2] = vecLocation[2]; 
+void DrawCircle(float vecLocation[3], float radius, float angleIncr, int client, bool RLessThanP, bool REqualsP) {
+	float angle;
+	float x;
+	float y;
 
-        TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {0,255,0,255}, 3); 
-        TE_SendToClient(client);
-        //TE_SendToAll();
-         
-        pos2[0] = pos1[0]; 
-        pos2[1] = pos1[1]; 
-        pos2[2] = pos1[2]; 
-         
-        angle += angleIncr; 
-    } 
-}  
+	float pos1[3];
+	float pos2[3];
 
+	//Create the start position for the first part of the beam
+	vecLocation[2] += 5.0;
+	pos2 = vecLocation;
+	pos2[0] += radius;
 
-stock DrawCircle(Float:vecLocation[3], Float:radius, Float:angleIncr, client, ticks_rocket, ticks_player) 
-{ 
-    new Float:angle=0.0, Float:x, Float:y; 
-     
-    new Float:pos1[3]; 
-    new Float:pos2[3]; 
-         
-    //Create the start position for the first part of the beam 
-    pos2[0] = vecLocation[0] + radius; 
-    pos2[1] = vecLocation[1]; 
-    pos2[2] = vecLocation[2]; 
-     
-    while (angle <= 2 * (PI + angleIncr)) 
-    {              
-        x = radius * Cosine(angle); 
-        y = radius * Sine(angle); 
-         
-        pos1[0] = vecLocation[0] + x; 
-        pos1[1] = vecLocation[1] + y; 
-        pos1[2] = vecLocation[2]; 
+	int RGBA[4];
+	RGBA[0] = RLessThanP ? 255 :   0;
+	RGBA[1] = RLessThanP ?   0 : 255;
+	RGBA[2] = REqualsP   ? 239 :   0;
+	RGBA[3] = 255;
 
-       //Hi nolem!
-        if(ticks_rocket == ticks_player)
-			{
-				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {0,255,239,255}, 3); 
-        		TE_SendToClient(client);
-        		
-			}
-			else if(ticks_rocket > ticks_player)
-			{
-				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {0,255,0,255}, 3); 
-        		TE_SendToClient(client);
-        		
+	while (angle <= 2 * (PI + angleIncr)) {
+		x = radius * Cosine(angle);
+		y = radius * Sine(angle);
 
-			}
-			else if(ticks_rocket < ticks_player)
-			{
-				TE_SetupBeamPoints(pos1, pos2, g_BeamSprite, g_HaloSprite, 0, 0, 0.1, Float:5.0, Float:0.1, 5, 0.0, {255,0,0,255}, 3); 
-       			TE_SendToClient(client);
-       			
-       		}
+		pos1 = vecLocation;
+		pos1[0] += x;
+		pos1[1] += y;
 
-         
-        pos2[0] = pos1[0]; 
-        pos2[1] = pos1[1]; 
-        pos2[2] = pos1[2]; 
-         
-        angle += angleIncr;
-    }  
-}  
+		TE_SetupBeamPoints(pos1, pos2, g_iBeamSprite, g_iHaloSprite, 0, 0, 0.1, 15.0, 15.0, 5, 10.0, RGBA, 5);
+		TE_SendToClient(client);
+
+		pos2 = pos1;
+
+		angle += angleIncr;
+	}
+}
+
+bool IsValidClient(int client) {
+	return (0 < client <= MaxClients && IsClientInGame(client));
+}

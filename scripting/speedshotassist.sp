@@ -8,9 +8,7 @@
 #include <updater>
 #define REQUIRE_PLUGIN
 
-#define PI 3.1415926535
-
-#define PLUGIN_VERSION "0.2.0"
+#define PLUGIN_VERSION "0.2.1"
 #define PLUGIN_DESCRIPTION "Tool to assist with speedshot timing and location"
 #define UPDATE_URL_BASE "http://raw.github.com/arispoloway/SpeedshotAssist"
 #define UPDATE_URL_BRANCH "master"
@@ -63,7 +61,7 @@ public void OnMapStart() {
 }
 
 public void OnMapEnd() {
-	for (int i = 0; i < MaxClients; i++) {
+	for (int i = 1; i <= MaxClients; i++) {
 		g_bEnabled[i] = false;
 	}
 }
@@ -83,7 +81,7 @@ public Action cmdSSA(int client, int args) {
 }
 
 public void OnGameFrame() {
-	for (int i = 1; i < MaxClients; i++) {
+	for (int i = 1; i <= MaxClients; i++) {
 		if (!IsValidClient(i) || !g_bEnabled[i]) {
 			continue;
 		}
@@ -197,7 +195,7 @@ void DrawTarget(float vecLocation[3], float radius, float angleIncr, int client,
 	pos2 = vecLocation;
 	pos2[0] += radius;
 
-	while (angle <= 2 * (PI + angleIncr)) {
+	while (angle <= 2 * (FLOAT_PI + angleIncr)) {
 		x = radius * Cosine(angle);
 		y = radius * Sine(angle);
 
@@ -240,7 +238,7 @@ void DrawCircle(float vecLocation[3], float radius, float angleIncr, int client,
 	RGBA[2] = REqualsP   ? 239 :   0;
 	RGBA[3] = 255;
 
-	while (angle <= 2 * (PI + angleIncr)) {
+	while (angle <= 2 * (FLOAT_PI + angleIncr)) {
 		x = radius * Cosine(angle);
 		y = radius * Sine(angle);
 
